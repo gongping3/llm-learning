@@ -12,7 +12,7 @@
 见 `experiments/pytorch/exp01_permute_view.py`
 
 ## 4. 我的理解
-（待填写：不看资料，用自己的话解释）
+从某一个维度看，访问这个维度下一个元素需要跨越的步长
 
 ## 5. 易错点
 - shape 相同，不代表 stride 相同（已验证：x=(3,4) stride (4,1)；permute 后 y=(4,3) stride (1,4)）。

@@ -17,8 +17,11 @@
 |---|---|---|---|---|---|---|
 | shape / dtype / device | 学习中 | 已纠正：shape 是"每个维度的大小"（维度数是 ndim）；二维维度含义回答正确 | 无记录（已排入第 1 课实验 2） | stride、view | 第 1 课实验 2 打印链路 | PyTorch 官方文档 |
 | stride / 内存布局 | 学习中 | 已知偏移公式并有实验证据，但尚未独立复述（前置检查只答出局部性） | 实验 1 已运行并验证（exp01） | view、contiguous、transpose | 复述 stride 定义 + 3D 推广 | PyTorch 官方文档 |
-| view / reshape | 学习中 | 已验证 view/reshape/contiguous 三者差异；预测 3 对 1 错 | 实验 1 已运行并验证（exp01） | stride、contiguous | 判断 reshape 是否复制的实验 | PyTorch 官方文档 |
-| transpose / permute | 学习中 | 已知 permute 不复制数据、只改 shape+stride；待独立复述 | 实验 1 已运行并验证（exp01） | stride、contiguous、view | 4D transpose 与 `K.transpose(-2,-1)` 的关系 | PyTorch 官方文档 |
+| view / reshape | 待验证 | 已能区分 view/reshape/contiguous，并掌握"是否复制"的判据与证据 | 实验 1、实验 2 已运行并验证 | stride、contiguous | 复述 reshape 判据（连续不复制/非连续复制） | PyTorch 官方文档 |
+| transpose / permute | 待验证 | 已知 permute 不复制数据、只改 shape+stride | 实验 1 已运行并验证（exp01） | stride、contiguous、view | 4D transpose 与 `K.transpose(-2,-1)` 的关系 | PyTorch 官方文档 |
+| 一个 token 的完整推理过程 | 待验证 | 已讲链路并跑通实验 3，能看 shape 表；待独立复述与 shape 推导 | 实验 3 已运行并验证（exp03） | prefill/decode、logits 采样 | 复述链路 + 回答本节思考题 | 论文 3.2 节 |
+| Prefill / Decode | 学习中 | 已知两阶段区别与瓶颈性质，KV Cache 只建立初步概念 | 实验 3（decode 循环）已观察 | KV cache、memory bound | 第 2 课：为什么 Decode 要重算整个序列 | - |
+| logits 与采样 | 学习中 | 已知 logits (1,S,V)、只取最后位置 | 实验 3 已观察 | sampler、temperature | 第 2 课 | HF LLM Course |
 | Wq / Wk / Wv 的来源 | 学习中 | 正在提问阶段 | 无 | QKV、matmul、embedding | 第 1～2 课 | Attention Is All You Need |
 | Softmax | 学习中 | 正在提问阶段 | 无 | attention、dim 参数 | 第 2～3 课 | PyTorch 官方文档 |
 | Position Embedding / RoPE | 学习中 | 正在提问阶段 | 无 | - | 第 3～4 课 | 论文 3.5 节 |

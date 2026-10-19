@@ -10,7 +10,7 @@
 见 `experiments/pytorch/exp01_permute_view.py`
 
 ## 4. 我的理解
-（待填写）
+permute 用于重新排列张量的维度，他不改变张量的底层实际数据，只是改变访问这些张量的视图
 
 ## 5. 易错点
 - **permute 不复制数据**（前置检查时的错误预期：以为 permute 后 stride 变成连续张量的 (3,1)，实际是 (1,4)）。

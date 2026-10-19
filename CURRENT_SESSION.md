@@ -49,6 +49,28 @@
 
 **新增的已验证事实**：偏移公式 `offset = i*stride[0] + j*stride[1] + storage_offset`（`x[2][3]=11` 与 `y[3][2]=11` 均落在同一存储位置 11）。
 
+### 检验题 + 实验 2（reshape 是否复制）
+
+- 学习者答案：不会失败、会复制数据；证明方法 = 把结果赋给新变量，改它，再与原 Tensor 比对。
+- **判定**：结论在本场景下正确 ✅，改值对比法有效 ✅；但"reshape 会复制"是**过度推广** ❌。
+- 实验 2（`experiments/pytorch/exp02_reshape_copy.py`）实际输出：
+  - 非连续 `y.reshape(12)` → data_ptr 不同，**复制**；改 `yr[0]=999` 后 `y[0][0]` 仍为 0
+  - 连续 `x.reshape(12)` → `storage().data_ptr()` 相同，**不复制**；改 `xr[0]=111` 后 `x[0][0]` 变为 111
+  - 改原始 `x[0][1]=777` 后 `y[1][0]` 变为 777（permute 共享存储）
+- 判据：`reshape` 只在必要时复制。另注：torch 2.14 已无模块级 `torch.shares_memory`，用 `data_ptr()` 比较。
+- 已记入 `reviews/mistakes.md` 与 `knowledge/pytorch/view-reshape.md`。
+
+## 2.5 第 1 课主体：一个 token 从进入模型到生成出来（已完成讲解 + 实验 3）
+
+- 实验 3：`experiments/attention/exp03_token_to_logits.py`（torch 2.14.1+cpu，V=1000, d=64, H=4）
+- 链路 shape（实测）：ids (1,5) → embedding (1,5,64) → QKV (1,5,64) → 多头 (1,4,5,16)
+  → scores (1,4,5,5) → 合并 (1,5,64) → block (1,5,64) → **logits (1,5,1000)** → 取最后位置 (1000,) → 采样
+- 核心结论：logits 是 `(1, S, V)`，但推理只用 `logits[0, -1]`，其余位置在 Decode 阶段被丢弃。
+- Prefill（compute bound，一次算完） vs Decode（memory bound，逐步生成）；实验证实第 n 步重算 n 个 token。
+- 已生成笔记 `knowledge/inference/lesson01-token-to-gpu.md`。
+
+**本节待完成**：学习者复述链路（检验题）+ 填写笔记"我的理解" → 然后进入第 2 课（KV Cache）。
+
 ## 2. 本节学习目标
 
 学完本课后，你应该能够：
