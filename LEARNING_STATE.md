@@ -15,10 +15,10 @@
 
 | 知识点 | 状态 | 理解程度 | 实验状态 | 关联知识 | 下次行动 | 资料来源 |
 |---|---|---|---|---|---|---|
-| Tensor shape / dtype / device | 学习中 | 知道含义，尚未独立验证 | 无记录 | stride、view | 第 1 课前置检查 | PyTorch 官方文档 |
-| stride / 内存布局 | 学习中 | 最近学过，细节未验证（如"shape 相同不代表 stride 相同"） | 无记录 | view、contiguous、transpose | 第 1 课前置检查 + stride 实验 | PyTorch 官方文档 |
-| view / reshape | 学习中 | 知道用途，不确定何时会复制数据 | 无记录 | stride、contiguous | 第 1 课前置检查 | PyTorch 官方文档 |
-| transpose / permute | 学习中 | 理解维度排列，内存布局不确定 | 无记录 | stride、contiguous | 第 1 课后安排"转置后调用 view"实验 | PyTorch 官方文档 |
+| shape / dtype / device | 学习中 | 已纠正：shape 是"每个维度的大小"（维度数是 ndim）；二维维度含义回答正确 | 无记录（已排入第 1 课实验 2） | stride、view | 第 1 课实验 2 打印链路 | PyTorch 官方文档 |
+| stride / 内存布局 | 学习中 | 已知偏移公式并有实验证据，但尚未独立复述（前置检查只答出局部性） | 实验 1 已运行并验证（exp01） | view、contiguous、transpose | 复述 stride 定义 + 3D 推广 | PyTorch 官方文档 |
+| view / reshape | 学习中 | 已验证 view/reshape/contiguous 三者差异；预测 3 对 1 错 | 实验 1 已运行并验证（exp01） | stride、contiguous | 判断 reshape 是否复制的实验 | PyTorch 官方文档 |
+| transpose / permute | 学习中 | 已知 permute 不复制数据、只改 shape+stride；待独立复述 | 实验 1 已运行并验证（exp01） | stride、contiguous、view | 4D transpose 与 `K.transpose(-2,-1)` 的关系 | PyTorch 官方文档 |
 | Wq / Wk / Wv 的来源 | 学习中 | 正在提问阶段 | 无 | QKV、matmul、embedding | 第 1～2 课 | Attention Is All You Need |
 | Softmax | 学习中 | 正在提问阶段 | 无 | attention、dim 参数 | 第 2～3 课 | PyTorch 官方文档 |
 | Position Embedding / RoPE | 学习中 | 正在提问阶段 | 无 | - | 第 3～4 课 | 论文 3.5 节 |
@@ -30,7 +30,7 @@
 
 ## 三、薄弱点
 
-1. **Tensor 内存布局**：stride、contiguous、view/reshape 何时复制数据，理解不完整。
+1. **Tensor 内存布局**：stride 定义表述不准（只说局部性）、permute 后 stride 判断错误、view 判据误记为"形状变没变"。→ 实验 1 已纠正，需复述验证。
 2. 尚未建立"用 shape/dtype/device 一路解释数据流"的习惯。
 3. 系统工程背景是优势，但 Transformer 理论链路（Embedding → QKV → Attention → ... → logits）尚未打通。
 

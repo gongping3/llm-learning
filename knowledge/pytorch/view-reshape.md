@@ -4,33 +4,45 @@
 （待填写）
 
 ## 2. 核心原理
-（待填写：与 stride / 连续性 (contiguous) 的关系，何时复制数据）
+（待填写：与 stride / 连续性的关系，何时复制数据）
+
+> 规则：**view 只在"仅修改 stride 就能解释出新形状"时成功；reshape 永不失败，必要时复制数据。**
 
 ## 3. 最小代码示例
-（待填写）
+见 `experiments/pytorch/exp01_permute_view.py`
 
 ## 4. 我的理解
 （待填写）
 
 ## 5. 易错点
-（已知候选，待验证：不确定 reshape 何时会复制数据 —— 这是当前明确的薄弱点）
+- 以为"改形状就一定会失败/一定会复制"：错的。`x.view(4, 3)`（x 连续）是成功的且共享存储。
+- 把"非连续 Tensor 的 view"判据记成"形状变没变"：真正判据是**能否只用 stride 重解释**。
+  反例（已验证）：`y.view(4, 3)` 成功（形状没变，无需重解释），但 `y.view(12)` 失败。
+- `contiguous()` 会真正搬数据（已验证：data_ptr 变化）。
 
 ## 6. 与其他知识的联系
 stride、contiguous、transpose、permute
 
 ## 7. 实验验证
-（尚无实验记录）
+2026-10-19，`experiments/pytorch/exp01_permute_view.py`（torch 2.14.1+cpu）：
+
+| 调用 | 结果 | 是否复制 |
+|---|---|---|
+| `x.view(4, 3)`（x 连续） | 成功，stride (3,1) | 否，共享存储 |
+| `y.view(4, 3)`（y 非连续，形状未变） | 成功，stride 仍 (1,4) | 否 |
+| `y.view(12)`（y 非连续，改形状） | RuntimeError | — |
+| `y.contiguous().view(12)` | 成功 | **是**（新建存储） |
+| `y.reshape(12)` | 成功 | 需要时复制 |
 
 ## 8. 掌握状态
-学习中（知道用途，不确定何时复制数据）
+学习中（前置检查预测 3 对 1 错，已通过实验纠正，待独立复述验证）
 
 ## 9. 官方资料
 - https://docs.pytorch.org/docs/stable/generated/torch.Tensor.view.html
 - https://docs.pytorch.org/docs/stable/generated/torch.reshape.html
 
 ## 10. 待解决问题
-- 什么条件下 view 会失败而 reshape 不会？
-- 如何用实验证明某次 reshape 发生了数据复制？
+- 如何判断一次 reshape 是否发生了复制？（提示：比较 `data_ptr()` 或 `is_contiguous()`）
 
 ## 记录
-- 2026-10-19：创建骨架笔记。依据学习计划文档，已学但"不确定何时会复制数据"，状态记为"学习中"。
+- 2026-10-19：创建骨架笔记 → 完成实验 1 验证。掌握状态"学习中"。
