@@ -1,15 +1,24 @@
 # 本次学习任务（CURRENT_SESSION）
 
 > 每次学习开始时更新本文件；结束时由 AI（知识管理员模式）更新状态并生成下一次任务。
+>
+> **2026-10-20 更新**：学习者说明尚未学习第 1 课内容，本次从零讲解。10-19 的实验记录仅作参考资料，不作为“已掌握”的依据；讲解后的复述与实验检验重新开始。
 
 ## 本次课程：第 1 课 —— 从一个 token 到 GPU：LLM 推理完整过程
 
-- **计划日期**：2026-10-19
-- **状态**：进行中 —— 前置知识检查阶段（等待学习者回答）
+- **计划日期**：2026-10-19（2026-10-20 重新开讲）
+- **状态**：进行中 —— 内容已讲解，等待学习者回答三个问题
 - **预计时长**：约 2 小时（10min 回忆 → 30min 新知识 → 45min 实验 → 20min 检验 → 15min 整理）
 - **所属阶段**：阶段 0 收尾 + 阶段 1 开篇
 
-## 1. 前置知识检查（当前步骤）
+## 0. 2026-10-20 当前状态
+
+- 已按学习者要求从零讲解第 1 课；完整讲义写入 `knowledge/inference/lesson01-token-to-gpu.md`（2026-10-20 重讲版）。
+- 当前等待学习者回答讲义 **7.3 的三个检验问题**，并完成 **7.2 的 shape 实验**。
+- 环境：Windows Python 3.13 有 numpy、无 torch；WSL 默认发行版为 docker-desktop，Ubuntu-24.04 也未安装 torch。实验前需安装 CPU 版 PyTorch，或改用 numpy 形状实验。
+- 下一步：根据回答判定“真正理解 / 仅记得结论 / 需补课”；实验通过后进入 L1.2 Tokenizer 与 Embedding。
+
+## 1. 前置知识检查（2026-10-19 历史记录）
 
 不看笔记，用自己的话回答：
 
@@ -60,16 +69,16 @@
 - 判据：`reshape` 只在必要时复制。另注：torch 2.14 已无模块级 `torch.shares_memory`，用 `data_ptr()` 比较。
 - 已记入 `reviews/mistakes.md` 与 `knowledge/pytorch/view-reshape.md`。
 
-## 2.5 第 1 课主体：一个 token 从进入模型到生成出来（已完成讲解 + 实验 3）
+### 1.5 第 1 课主体讲解记录（2026-10-19，历史参考）
 
 - 实验 3：`experiments/attention/exp03_token_to_logits.py`（torch 2.14.1+cpu，V=1000, d=64, H=4）
 - 链路 shape（实测）：ids (1,5) → embedding (1,5,64) → QKV (1,5,64) → 多头 (1,4,5,16)
   → scores (1,4,5,5) → 合并 (1,5,64) → block (1,5,64) → **logits (1,5,1000)** → 取最后位置 (1000,) → 采样
-- 核心结论：logits 是 `(1, S, V)`，但推理只用 `logits[0, -1]`，其余位置在 Decode 阶段被丢弃。
+- 核心结论（旧表述，已在 2026-10-20 重讲版中细化）：logits 是 `(1, S, V)`；生成只用最后位置。注意：主干仍要处理全部 S 个 token 以产生 K/V，能省的是 lm_head 对前面位置的投影。
 - Prefill（compute bound，一次算完） vs Decode（memory bound，逐步生成）；实验证实第 n 步重算 n 个 token。
 - 已生成笔记 `knowledge/inference/lesson01-token-to-gpu.md`。
 
-**本节待完成**：学习者复述链路（检验题）+ 填写笔记"我的理解" → 然后进入第 2 课（KV Cache）。
+**本节待完成（2026-10-20）**：回答讲义 7.3 的三个问题 + 完成 7.2 的 shape 实验 + 填写笔记"我的理解"。通过后再进入 L1.2 Tokenizer 与 Embedding。
 
 ## 2. 本节学习目标
 
@@ -82,18 +91,25 @@
 
 ## 3. 学习流程（按 TUTOR_RULES 标准流程）
 
-1. ☐ 检查前置知识（当前）
-2. ☐ 明确本节学习目标
-3. ☐ 讲解核心概念：token → embedding → 模型前向 → logits → 采样 → 下一个 token
-4. ☐ 阅读官方资料（PyTorch Tutorials / HF LLM Course 相关章节）
+1. ☑ 检查前置知识（10-19 有历史记录；本次按“从零讲解”处理）
+2. ☑ 明确本节学习目标
+3. ☑ 讲解核心概念：token → embedding → 模型前向 → logits → 采样 → 下一个 token（2026-10-20）
+4. ☐ 阅读官方资料（PyTorch Embedding / Attention Is All You Need 3.1～3.2 / HF LLM Course）
 5. ☐ 编写并运行实验：打印推理链路上每个 Tensor 的 shape / dtype / device
-6. ☐ 通过提问和实践检查理解程度
+6. ☐ 通过提问和实践检查理解程度（讲义 7.3 三问）
 7. ☐ 总结易错点、知识关联和待解决问题
 8. ☐ 更新学习状态，准备下一次任务
 
 ## 4. 实验任务
 
-（待前置检查完成后，根据实际掌握情况设计；初步方向：用最小代码手动走一遍 token → embedding → 线性层 → softmax 的 shape 变化。）
+见知识笔记 7.2：
+
+1. 先预测 ids / X / q / scores / logits 的 shape，再运行 `experiments/attention/exp03_token_to_logits.py` 对照。
+2. 打印每一步的 shape、dtype、device。
+3. 观察 Prefill 与 Decode 每步的序列长度和 logits shape。
+4. 记录预测与实际的差异。
+
+当前环境缺 torch：需先安装 CPU 版 PyTorch，或改用 numpy 形状实验。
 
 ## 5. 结束时需更新
 
