@@ -17,7 +17,7 @@
 
 | 课号 | 课程名 | 关键产出 | 状态 |
 |---|---|---|---|
-| L1.1 | 从一个 token 到 GPU：LLM 推理完整过程 | 实验 3（exp03） | [~] |
+| L1.1 | 从一个 token 到 GPU：LLM 推理完整过程 | 实验 3（exp03） | [x] |
 | L1.2 | Tokenizer 与 Embedding | shape 打印实验 | [ ] |
 | L1.3 | QKV 与 Scaled Dot-Product Attention（含 causal mask） | 手写 attention | [ ] |
 | L1.4 | Multi-Head Attention 与形状变换 | 多头切分/合并实验 | [ ] |
@@ -110,3 +110,4 @@
 ## 变更记录
 
 - 2026-10-19：创建 45 课索引；L0.2、L0.3、L1.1 标记为进行中（第 1 课已讲解，实验 1～3 已跑通）。
+- 2026-10-25：L1.1 标记为 [x]（7.3 三问 + 7.2 实验 + 7.4 复述全部通过，知识点升"已掌握"）。

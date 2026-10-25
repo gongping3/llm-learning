@@ -114,7 +114,7 @@ logits = h @ lm_head.T   # (B,S,V)
 
 **Prefill**：prompt 的 S 个 token 一次并行过模型；矩阵乘维度大，GPU 利用率高，compute bound；产出第一个新 token 的 logits，并产生所有位置的 K/V。
 
-**Decode**：每次只新增 1 个 token，自回归。没有 KV Cache 时，每步把“prompt + 已生成”整个序列重新过模型，只为拿最后一个位置的 logits；第 n 步重算 n 个 token。
+**Decode**：每次只新增 1 个 token，自回归。没有 KV Cache 时，每步把”prompt + 已生成”整个序列重新过模型，只为拿最后一个位置的 logits；第 n 步（生成第 n 个新 token）要重算 S+n−1 个 token（S 为 prompt 长度）——序列长度每步 +1，整个序列都要重算。
 
 两个后果：
 
@@ -161,11 +161,30 @@ logits = out @ lm_head.T                             # (1,5,1000)
 next_id = logits[:, -1].argmax(dim=-1)               # (1,)
 ```
 
-> 当前机器还没装 torch（见 `CURRENT_SESSION.md` 的环境说明）。这段代码用于对照 shape；实验时再运行完整版 `experiments/attention/exp03_token_to_logits.py`。
+> 实验代码见 `experiments/attention/exp03_token_to_logits.py`（2026-10-25 已在 `/home/gongping/vllm-env` 的 torch 2.11.0+cu130 环境运行验证，见 7.2）。
 
 ## 4. 我的理解
 
-（待学习者用自己的话填写。要求：不看讲义，写出 ids → logits 的链路和至少 6 个 shape；AI 的讲解不算掌握。）
+（2026-10-25 学习者不看讲义回答，原话整理。已通过 7.3 检验，判定"真正理解"。）
+
+```text
+ids (1,5) int64
+→ X (1,5,64)                Embedding 查表
+→ Q/K/V 各 (1,5,64)         X @ Wq/Wk/Wv，三个投影
+→ q/k/v 各 (1,4,5,16)       view(1,5,4,16).transpose(1,2) 多头切分
+→ scores (1,4,5,5)          q @ kᵀ / √16   ★ attention 特有
+→ attn (1,4,5,5)            causal mask + softmax
+→ context (1,4,5,16)        attn @ v
+→ out (1,5,64)              transpose(1,2).reshape 多头合并；+ Wo/残差/Norm/FFN 后 shape 不变
+→ logits (1,5,1000)         h @ lm_head.T
+→ last (1,1000) → 采样 → 下一个 token id（标量）
+```
+
+attention 特有的 shape 是 scores 的 (1,4,5,5)，即 (B,H,S,S)：主干上几乎所有张量都是 (B,S,d) 的"每位置一个向量"形态，只有 attention 造出一张 S×S 的位置对位置相关性矩阵（query 行 × key 列），跨位置的信息交流只发生在这里；FFN、投影都是逐位置的。
+
+生成时只取最后一个位置的 logits：位置 i 的 logits 预测的是第 i+1 个 token，只有最后位置能给出"当前序列之后的新 token"。但前面的 hidden state 大有用处——最后一个位置要 attend 到全部历史位置，它的 hidden state 是所有历史 K/V 加权求和的结果。所以**主干必须算完全部 S 个位置（为了产生所有位置的 K/V），能省的只是对前面位置做 lm_head 的 d→V 投影**。训练时相反：(B,S,V) 全部参与 loss。
+
+（一处口误已纠正：无 cache 时 Decode 第 n 步重算的是 S+n−1 个 token，不是 n 个。）
 
 ## 5. 易错点
 
@@ -205,26 +224,52 @@ next_id = logits[:, -1].argmax(dim=-1)               # (1,)
 
 Prefill 采样得到 token 350；随后 Decode 逐步生成 30 → 892 → 895 → 548 → 892 → 892。
 
-结论：Decode 第 n 步重算 n 个 token；累计计算量至少平方增长，这就是 KV Cache 的动机。
+结论：Decode 每步都要把更长的整个序列重算一遍；累计计算量至少平方增长，这就是 KV Cache 的动机。（原表述"第 n 步重算 n 个 token"不严谨：应为 S+n−1 个，S 为 prompt 长度，见 2.7。）
 
-### 7.2 2026-10-20 本次实验（待完成）
+### 7.2 2026-10-25 本次实验（已完成，判定：通过）
 
-- [ ] 先预测每个环节的 shape，再运行代码对照。
-- [ ] 打印 ids / X / q / scores / logits 的 shape、dtype、device。
-- [ ] 观察 Prefill 与 Decode 每步的序列长度和 logits shape。
-- [ ] 记录预测与实际的差异。
+环境：`/home/gongping/vllm-env`（uv venv，torch 2.11.0+cu130，CPU 运行）。2026-10-20 记录的环境阻塞已解除。
 
-> 环境阻塞：当前 Windows Python 3.13 无 torch；WSL 默认发行版为 docker-desktop；Ubuntu-24.04 也未安装 torch。需先安装 CPU 版 PyTorch，或改用 numpy 形状实验。
+学习者先写下预测，再运行 `experiments/attention/exp03_token_to_logits.py` 对照。预测与实际 **100% 吻合**：
 
-### 7.3 检验问题（待回答）
+- Prefill 链路 11 个 shape 全部正确：ids (1,5) → embedding (1,5,64) → Q/K/V (1,5,64) → q (1,4,5,16) → scores (1,4,5,5) → 合并 (1,5,64) → block (1,5,64) → logits (1,5,1000) → last (1000,)；
+- Decode 每步序列长度 6→11、logits (1,S,1000)、每步重算 S 个 token，全部正确；
+- 固定种子下采样值也全部预测正确（350 → 30 → 892 → 895 → 548 → 892 → 892），说明"每步整条序列重算"的机制理解到位。
 
-1. 从 `ids` 到下一个 token，按顺序经过哪些主要张量？至少说出 6 个 shape，并解释哪一个 shape 是 attention 特有的。
-2. 生成时为什么只取最后一个位置的 logits？Prefill 阶段前面位置的 hidden state 还有没有用？如果有，用在哪里？
-3. 没有 KV Cache 时，Decode 第 n 步为什么要算 n 个 token？有了 cache 之后，哪部分计算消失了，哪部分仍然要做？
+一处小问题：结论句直接引用了实验代码第 85 行的旧表述（"第 n 步重算 n 个 token，累计平方增长"），该表述已随 2.7 修正，实验代码也已同步修正（见 7.4）。
+
+### 7.3 检验问题（2026-10-25 已回答，判定：通过）
+
+**第 1 题：ids → 下一个 token 的张量链。**
+回答：11 个张量、shape 全对（完整链路见第 4 节）；指出 attention 特有的是 scores 的 (B,H,S,S)，理由正确——主干上几乎都是 (B,S,d) 逐位置形态，只有 attention 造出 S×S 跨位置相关性矩阵。
+判定：✅ 真正理解（不只是报出 shape，还解释了为什么只有 attention 有 S×S 形态）。
+
+**第 2 题：为什么只取最后位置 logits？前面的 hidden state 还有用吗？**
+回答：位置 i 的 logits 预测第 i+1 个 token，前面 S−1 个位置的 logits 预测的都是已存在的 token，采样用不上；前面的 hidden state 有用——最后一个位置要 attend 所有历史位置，其 hidden state 是全部历史 K/V 的加权和。主干必须算完全部 S 个位置（产生所有位置的 K/V），能省的只是 lm_head 的 d→V 投影。训练时相反：(B,S,V) 全部参与 loss。
+判定：✅ 抓住了 2026-10-20 重讲版的核心区分（主干全算 / lm_head 可省），未复现旧版"其余位置被丢弃"的错误表述。
+
+**第 3 题：无 KV Cache 时 Decode 为什么重算？有 cache 后什么消失、什么保留？**
+回答：无 cache 时，新 token 的 attention 需要全部历史 K/V，而 K/V 没有存下来，只能把整条序列重新过一遍模型；线性层工作量累计 O(T²)，连 attention 也重算则 O(T³)。有 cache 后消失的：旧 token 的 Embedding、Q/K/V 投影、旧 token 之间的 attention 计算、FFN——全部不重算，线性层降为 O(T)；仍要做的：新 token 自己过一次主干、Q 与全部缓存 K 点积、attn 与缓存 V 加权（attention 累计仍是 O(T²)，但只是点积）、新 token 的 FFN 与 lm_head、把新 K/V 追加进 cache。
+判定：✅ 机制与复杂度全对。一处口误：序列长度应为 S+n−1（S=prompt 长度），说成了 n；讲义 2.7 原表述同样不严谨，已一并修正。
+
+### 7.4 结论复述检验（2026-10-25，判定：通过，但经历 4 轮纠正）
+
+问题：无 cache 时 Decode 生成第 n 个 token 究竟重算了什么？累计计算量什么量级？
+
+| 轮次 | 回答 | 问题 |
+|---|---|---|
+| 1 | "重算了前 n-1 个 token 的 Q 与全部缓存 K 点积、attn 与缓存 V 加权" | 把"有 cache 后仍要做的事"安到了无 cache 场景；无 cache 时 K/V 根本没存，何来"缓存 K" |
+| 2 | "要算 Embedding、Q/K/V 投影、attention、FFN、lm_head；有 cache 已经算过的 attention 不需要再算" | 缺"谁的"量词（对旧 token 重算才是无 cache 的区别）；有 cache 时新 token 对历史 K/V 的 attention 仍要算 |
+| 3 | "无 cache 对旧 token 全重算；有 cache 只对新 token 算 attention" | 无 cache 漏了新 token（是整条序列都重算）；有 cache 时新 token 不只算 attention，要完整过 Embedding→QKV→FFN→lm_head |
+| 4 | 无 cache = 整条序列所有 token 的 Embedding、Q/K/V、attention、FFN、lm_head 全部重算；有 cache = 只算新 token 的 Embedding、Q/K/V、FFN、lm_head + 新 token 的 Q 与缓存 K/V 的点积、加权；省掉旧 token 的一切计算 | ✅ 通过 |
+
+追加确认（新 token 的 K/V 是"现算"还是"存进 cache"？）：先答"现算"、后改答"存进 cache"——两个都对，完整顺序是**先现算、再追加进 cache**。
+
+**教训**：无 cache 与有 cache 的对比必须带量词——"谁的 Embedding/QKV/attention"。不带量词的层名列表在两种场景都成立，等于没说。
 
 ## 8. 掌握状态
 
-**学习中**（2026-10-20 从零讲解；等待回答 7.3 三问并完成 7.2 实验后，再评估是否升为“待验证”）。
+**已掌握**（2026-10-25：7.3 三问独立通过 + 7.2 shape 实验预测 100% 吻合 + 无 cache/cache 对比经纠正后完整复述。复述过程见 7.4，相关错误已记入 `reviews/mistakes.md`。）
 
 ## 9. 官方资料
 
@@ -243,4 +288,6 @@ Prefill 采样得到 token 350；随后 Decode 逐步生成 30 → 892 → 895 �
 ## 变更记录
 
 - 2026-10-19：创建；完成实验 1～3，记录 shape 表与 Prefill/Decode 观察。
-- 2026-10-20：学习者说明尚未学习本课，按“从零讲解”重写第 1～7 节；细化“主干处理全部 token / lm_head 只算最后位置”的区别；回答 causal mask `diagonal=1` 的问题；掌握状态改为“学习中”，10-19 实验数据保留为历史参考。
+- 2026-10-20：学习者说明尚未学习本课，按”从零讲解”重写第 1～7 节；细化”主干处理全部 token / lm_head 只算最后位置”的区别；回答 causal mask `diagonal=1` 的问题；掌握状态改为”学习中”，10-19 实验数据保留为历史参考。
+- 2026-10-25：学习者不看讲义回答 7.3 三问，判定通过（真正理解）；第 4 节”我的理解”填入学习者原话；修正 2.7 与 7.1 中”第 n 步重算 n 个 token”的不严谨表述（应为 S+n−1）；掌握状态升为”待验证”。
+- 2026-10-25：7.2 shape 实验完成（预测与实际 100% 吻合，`/home/gongping/vllm-env` torch 2.11.0+cu130）；新增 7.4 结论复述记录（4 轮纠正后通过）；同步修正实验代码第 85 行的旧结论表述；掌握状态升为”已掌握”。

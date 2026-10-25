@@ -4,19 +4,43 @@
 >
 > **2026-10-20 更新**：学习者说明尚未学习第 1 课内容，本次从零讲解。10-19 的实验记录仅作参考资料，不作为“已掌握”的依据；讲解后的复述与实验检验重新开始。
 
-## 本次课程：第 1 课 —— 从一个 token 到 GPU：LLM 推理完整过程
+## 本次课程：L1.2 —— Tokenizer 与 Embedding（阶段 1）
 
-- **计划日期**：2026-10-19（2026-10-20 重新开讲）
-- **状态**：进行中 —— 内容已讲解，等待学习者回答三个问题
+- **计划日期**：2026-10-26
+- **状态**：未开始
 - **预计时长**：约 2 小时（10min 回忆 → 30min 新知识 → 45min 实验 → 20min 检验 → 15min 整理）
-- **所属阶段**：阶段 0 收尾 + 阶段 1 开篇
+- **所属阶段**：阶段 1（Transformer 基础）
+- **前置**：L1.1 已掌握（2026-10-25）；开始前先做间隔复习（PyTorch 内存布局第 7 天 + 第 1 课链路第 1 天，见 review-log）
 
-## 0. 2026-10-20 当前状态
+## 本课任务
+
+1. **回忆**：10-26 复习变式题（换 H、换 V 推 shape；有 cache 后新 token 的 attention 怎么算），不重讲。
+2. **Tokenizer**：BPE / 词表 / token id 的关系；为什么词表是 V；特殊 token（BOS/EOS/PAD）。
+3. **Embedding**：`(V,d)` 查表；dtype/device；与 lm_head 的权重是否共享。
+4. **Positional Encoding / RoPE**：为什么需要位置信息（L1.1 已留伏笔）；RoPE 如何注入 Q/K（初步，L1.3 深入）。
+5. **实验**：用真实 tokenizer（如 HF 的 GPT-2）把一段文本切成 ids，打印每个 tensor 的 shape/dtype/device；对比不同 tokenizer 的切分差异。
+6. **官方资料**（含 L1.1 未读部分）：The Illustrated Transformer、HF LLM Course、PyTorch Embedding 文档。
+7. 参考：`curriculum/01-transformer.md` 与 `sources/references.md`。
+
+---
+
+## L1.1 完成记录（2026-10-25）
+
+第 1 课《从一个 token 到 GPU：LLM 推理完整过程》已收尾：
+
+- 7.3 三问独立通过（10-25）；7.2 shape 实验预测 100% 吻合（10-25，`/home/gongping/vllm-env`，torch 2.11.0+cu130）。
+- 无 cache/cache 对比复述 4 轮纠正后通过（教训：对比必须带"谁的"量词）。
+- 掌握状态："一个 token 的完整推理过程" → **已掌握**（本系统第一个已掌握知识点）。
+- 详细记录：`knowledge/inference/lesson01-token-to-gpu.md`（7.2/7.4 节）、`reviews/mistakes.md`。
+- 未完成项：官方资料阅读（工作流第 4 步）并入 L1.2。
+
+## 0. 历史状态记录（2026-10-20）
 
 - 已按学习者要求从零讲解第 1 课；完整讲义写入 `knowledge/inference/lesson01-token-to-gpu.md`（2026-10-20 重讲版）。
-- 当前等待学习者回答讲义 **7.3 的三个检验问题**，并完成 **7.2 的 shape 实验**。
-- 环境：Windows Python 3.13 有 numpy、无 torch；WSL 默认发行版为 docker-desktop，Ubuntu-24.04 也未安装 torch。实验前需安装 CPU 版 PyTorch，或改用 numpy 形状实验。
-- 下一步：根据回答判定“真正理解 / 仅记得结论 / 需补课”；实验通过后进入 L1.2 Tokenizer 与 Embedding。
+- 2026-10-25：学习者不看讲义回答 **7.3 三问，判定通过（真正理解）**；原话已记入讲义第 4 节与 7.3 节。一处口误（Decode 序列长度 S+n−1 说成 n 个）已纠正，讲义 2.7 的不严谨表述一并修正。掌握状态升为”待验证”。
+- ~~当前等待：完成 7.2 的 shape 实验~~ → 已于 2026-10-25 完成并通过（预测 100% 吻合）。
+- 环境：~~阻塞~~ → 2026-10-25 已解决：`/home/gongping/vllm-env`（uv venv，torch 2.11.0+cu130）运行 exp03 验证通过。
+- 下一步：~~7.2 实验~~ → 已升”已掌握”；进入 L1.2 Tokenizer 与 Embedding。
 
 ## 1. 前置知识检查（2026-10-19 历史记录）
 
@@ -94,11 +118,11 @@
 1. ☑ 检查前置知识（10-19 有历史记录；本次按“从零讲解”处理）
 2. ☑ 明确本节学习目标
 3. ☑ 讲解核心概念：token → embedding → 模型前向 → logits → 采样 → 下一个 token（2026-10-20）
-4. ☐ 阅读官方资料（PyTorch Embedding / Attention Is All You Need 3.1～3.2 / HF LLM Course）
-5. ☐ 编写并运行实验：打印推理链路上每个 Tensor 的 shape / dtype / device
-6. ☐ 通过提问和实践检查理解程度（讲义 7.3 三问）
-7. ☐ 总结易错点、知识关联和待解决问题
-8. ☐ 更新学习状态，准备下一次任务
+4. ☐ 阅读官方资料（未完成，并入 L1.2：PyTorch Embedding / Attention Is All You Need 3.1～3.2 / HF LLM Course）
+5. ☑ 编写并运行实验：打印推理链路上每个 Tensor 的 shape / dtype / device（2026-10-25 通过）
+6. ☑ 通过提问和实践检查理解程度（7.3 提问 + 7.2 实验 + 7.4 复述，2026-10-25 全部通过）
+7. ☑ 总结易错点、知识关联和待解决问题（mistakes.md / 讲义 7.4 / 变更记录）
+8. ☑ 更新学习状态，准备下一次任务（本次，生成 L1.2）
 
 ## 4. 实验任务
 
@@ -109,17 +133,19 @@
 3. 观察 Prefill 与 Decode 每步的序列长度和 logits shape。
 4. 记录预测与实际的差异。
 
-当前环境缺 torch：需先安装 CPU 版 PyTorch，或改用 numpy 形状实验。
+~~当前环境缺 torch~~ → 已解决（`/home/gongping/vllm-env`）。**本任务已于 2026-10-25 完成并通过**（详见讲义 7.2 节）。
 
 ## 5. 结束时需更新
 
-- [ ] LEARNING_STATE.md（知识点状态、薄弱点、复习安排）
-- [ ] knowledge/ 新增或修改的笔记
-- [ ] reviews/mistakes.md（本次发现的错误理解）
-- [ ] 生成下一次学习任务
+- [x] LEARNING_STATE.md（知识点状态、薄弱点、复习安排）
+- [x] knowledge/ 新增或修改的笔记（lesson01-token-to-gpu.md：7.2/7.4/8 节/变更记录）
+- [x] reviews/mistakes.md（本次发现的错误理解，新增 5 条）
+- [x] 生成下一次学习任务（L1.2，见本文件顶部）
 
 ---
 
 ## 历史会话记录
 
 （每次学习结束后在此追加一条摘要：日期 / 学习内容 / 掌握情况 / 下次衔接点。）
+
+- **2026-10-25**：完成 L1.1 收尾。7.2 shape 实验预测与实际 100% 吻合（`/home/gongping/vllm-env`，torch 2.11.0+cu130，环境阻塞解除）；无 cache/cache 对比复述 4 轮纠正后通过（错误集中在"缺量词"和两场景说混，已记 mistakes）。"一个 token 的完整推理过程"升为**已掌握**（本系统第一个）。实验代码第 85 行旧结论表述同步修正。下次：10-26 先做间隔复习，再开始 L1.2 Tokenizer 与 Embedding。

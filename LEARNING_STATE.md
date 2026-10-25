@@ -3,7 +3,7 @@
 > 每次学习结束后更新。记录真实进度，不虚构已完成的课程或实验。
 > 状态定义：未学习 / 学习中（看过资料但不能独立解释）/ 待验证（能解释基本原理但实验或代码理解不完整）/ 已掌握（能独立解释、分析代码并通过检验）。
 
-**最后更新**：2026-10-20（第 1 课从零重讲；等待复述与实验，环境待复核）
+**最后更新**：2026-10-25（7.2 实验通过；第 1 课链路升为已掌握，L1.1 完成）
 
 ## 一、当前所处阶段
 
@@ -19,32 +19,35 @@
 | stride / 内存布局 | 学习中 | 已知偏移公式并有实验证据，但尚未独立复述（前置检查只答出局部性） | 实验 1 已运行并验证（exp01） | view、contiguous、transpose | 复述 stride 定义 + 3D 推广 | PyTorch 官方文档 |
 | view / reshape | 待验证 | 已能区分 view/reshape/contiguous，并掌握"是否复制"的判据与证据 | 实验 1、实验 2 已运行并验证 | stride、contiguous | 复述 reshape 判据（连续不复制/非连续复制） | PyTorch 官方文档 |
 | transpose / permute | 待验证 | 已知 permute 不复制数据、只改 shape+stride | 实验 1 已运行并验证（exp01） | stride、contiguous、view | 4D transpose 与 `K.transpose(-2,-1)` 的关系 | PyTorch 官方文档 |
-| 一个 token 的完整推理过程 | 学习中 | 2026-10-20 从零讲解；能看 shape 表，待独立复述链路与推导 | 10-19 实验 3 仅作参考；本次待重新运行 | prefill/decode、logits 采样 | 回答讲义 7.3 三问 + 完成 7.2 实验 | 论文 3.2 节 |
-| Prefill / Decode | 学习中 | 已讲解两阶段与 compute/memory bound；KV Cache 只建立初步概念 | 10-19 实验 3 有观察，待本次复现 | KV cache、memory bound | 用“每 token 读多少权重”解释 Decode | - |
-| logits 与采样 | 学习中 | 已讲解 logits (B,S,V)、只取最后位置；区分主干与 lm_head | 待本次实验观察 | sampler、temperature | 回答“其余位置去哪了” | HF LLM Course |
-| Wq / Wk / Wv 的来源 | 学习中 | 2026-10-20 已讲解是三个可学习投影矩阵；待复述 | 无 | QKV、matmul、embedding | 复述 Q/K/V 的角色差异 | Attention Is All You Need |
+| 一个 token 的完整推理过程 | 已掌握 | 7.3 三问独立通过 + 7.2 实验预测 100% 吻合 + 无 cache/cache 对比经 4 轮纠正后完整复述（2026-10-25） | 7.2 已运行验证（exp03，torch 2.11.0+cu130） | prefill/decode、logits 采样、KV Cache 动机 | 10-26 第 1 天间隔复习 | 论文 3.2 节 |
+| Prefill / Decode | 待验证 | 2026-10-25 已能完整对比无 cache/cache 两种 Decode（4 轮纠正后）；O(T²)/O(T³) 表述已修正 | 7.2 已复现（10-25，exp03） | KV cache、memory bound | 用”每 token 读多少权重”解释 Decode 的 memory bound（尚未做到） | - |
+| logits 与采样 | 待验证 | 2026-10-25 已独立解释”为什么只取最后位置”与”主干全算/lm_head 可省”的区别，并对比训练时行为 | 待 7.2 实验观察 | sampler、temperature | 实验观察 logits shape 与采样 | HF LLM Course |
+| Wq / Wk / Wv 的来源 | 学习中 | 已复述"X @ Wq/Wk/Wv 三个投影"（2026-10-25 第 1 题）；角色差异（Q 找什么 / K 提供什么 / V 传什么）尚未复述 | 无 | QKV、matmul、embedding | 一句话说出 Q/K/V 的角色差异 | Attention Is All You Need |
 | Softmax | 学习中 | 2026-10-20 已讲解 dim=-1 与 sqrt(dh) 缩放；待复述 | 无 | attention、dim 参数 | 解释 mask 后 softmax 的行为 | PyTorch 官方文档 |
 | Position Embedding / RoPE | 未学习 | 第 1 课仅提及“需要位置信息”，未展开 | 无 | - | L1.2/L1.3 | 论文 3.5 节 |
 | KV Cache | 未学习 | 第 1 课只建立“为什么要存”的直觉 | 无 | K/V、显存 | 第 2 课 | PagedAttention 论文 |
 
-> 注：目前尚无任何"已掌握"知识点——所有已学内容都缺少实验或测验证据，符合规范要求的诚实记录。
+> 注：2026-10-25 出现第 1 个"已掌握"知识点（一个 token 的完整推理过程）；其余仍按证据不足如实记录。
 
 ## 三、薄弱点
 
-1. **Tensor 内存布局**：stride 定义表述不准（只说局部性）、permute 后 stride 判断错误、view 判据误记为"形状变没变"。→ 实验 1 已纠正，需复述验证。
+1. **Tensor 内存布局**：stride 定义表述不准（只说局部性）、permute 后 stride 判断错误、view 判据误记为"形状变没变"。→ 实验 1 已纠正，需复述验证（10-26 复习）。
 2. 尚未建立"用 shape/dtype/device 一路解释数据流"的习惯。
-3. Transformer 理论链路（Embedding → QKV → Attention → ... → logits）已在 2026-10-20 讲解一遍，但尚未复述验证，不能算已打通。
-4. 环境未就绪：当前机器没找到 torch，第 1 课实验尚未重新运行。
+3. ~~Transformer 理论链路尚未复述验证~~ → 已打通（2026-10-25：7.3 + 7.2 通过）。
+4. ~~环境未就绪~~ → 已解决：`/home/gongping/vllm-env`（uv venv，torch 2.11.0+cu130）。
+5. **无 cache / 有 cache 的 Decode 计算对比**：2026-10-25 复述 4 轮才通过（缺"谁的"量词、把两场景说混），需在间隔复习中重点出变式题。
 
 ## 四、学习环境
 
 - 原记录：WSL2 + NVIDIA GPU + CUDA + Python 3.12 + uv，已安装/接触过 vLLM。
-- 2026-10-20 核查：Windows Python 3.13 有 numpy 2.4.4、无 torch；WSL 默认发行版为 docker-desktop；Ubuntu-24.04 未安装 torch，也未找到 uv/venv。原记录的环境未在当前会话复现，需先确认或重装。
+- 2026-10-20 核查：Windows Python 3.13 有 numpy 2.4.4、无 torch；WSL 默认发行版为 docker-desktop；Ubuntu-24.04 未安装 torch，也未找到 uv/venv。
+- 2026-10-25 核查：`/home/gongping/vllm-env`（uv venv）可用，**torch 2.11.0+cu130**；exp03 已在此环境运行验证。后续实验统一用该环境。
 - 学习节奏：约 2 小时/天。
 
 ## 五、复习安排
 
-- 目前无已进入复习周期的知识点。
+- 2026-10-26：PyTorch 内存布局（10-19 学的第 7 天）+ 第 1 课链路（10-25 学的第 1 天）——出变式题，不重讲。
+- 2026-10-28：第 1 课链路第 3 天。之后 11-01 / 11-08 / 11-24。
 - 规则：学习后第 1、3、7、14、30 天复习，先出题再重讲，记录在 `reviews/review-log.md`。
 
 ## 六、里程碑进度

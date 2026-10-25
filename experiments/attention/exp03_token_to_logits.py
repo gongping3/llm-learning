@@ -6,7 +6,7 @@
 2. 观察 Prefill（一次吃整个 prompt）与 Decode（逐步生成）两个阶段
 3. 为第 2 课埋下伏笔：Decode 每次都重算整个序列 → 为什么要 KV Cache
 
-运行：python exp03_token_to_logits.py（CPU 即可，torch 2.14.1+cpu 验证通过）
+运行：python exp03_token_to_logits.py（CPU 即可；torch 2.14.1+cpu 与 2.11.0+cu130 均验证通过）
 """
 
 import math
@@ -82,4 +82,5 @@ for step in range(1, 7):
           f"logits shape={tuple(logits.shape)}  新 token={next_id.item()}")
     VERBOSE = False
 
-print("\n结论：Decode 第 n 步要重算 n 个 token，累计计算量随长度平方增长 → 这就是 KV Cache 要解决的问题（第 2 课）。")
+print("\n结论：Decode 每步把完整序列（prompt + 已生成）重算一遍，序列每步 +1；累计计算量至少平方增长"
+      "（线性层 O(T²)，attention 也重算则整体 O(T³)）→ 这就是 KV Cache 要解决的问题（第 2 课）。")
